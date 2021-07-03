@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.priyam</groupId>
-  <artifactId>vertx-sync</artifactId>
+  <artifactId>vertx-producer-async</artifactId>
   <version>1.0.0-SNAPSHOT</version>
 
   <properties>
@@ -19,7 +19,7 @@
     <vertx.version>4.1.1</vertx.version>
     <junit-jupiter.version>5.7.0</junit-jupiter.version>
 
-    <main.verticle>com.priyam.vertx_sync.MainVerticle</main.verticle>
+    <main.verticle>com.priyam.vertx_async_core.MainVerticle</main.verticle>
     <launcher.class>io.vertx.core.Launcher</launcher.class>
   </properties>
 
@@ -71,6 +71,10 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-json-schema</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-mongo-client</artifactId>
     </dependency>
 
     <dependency>
