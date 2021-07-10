@@ -1,0 +1,41 @@
+# Use root/example as user/password credentials
+version: '3.7'
+
+services:
+
+  mongo:
+    image: mongo
+    container_name: my-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=vertx-async-to-sync
+    volumes:
+      - mongodb:/data/db
+      - mongoconfig:/data/configdb
+    networks:
+      - mongodb_network
+    ports:
+      - 27017:27017
+
+  mongo-express:
+    image: mongo-express
+    container_name: my-mongo-express
+    restart: unless-stopped
+    environment:
+#      - ME_CONFIG_MONGODB_SERVER=mongo
+#      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+#      - ME_CONFIG_MONGODB_ADMINPASSWORD=15243
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=15243
+    depends_on:
+      - mongo
+    networks:
+      - mongodb_network
+    ports:
+      - 8081:8081
+volumes:
+  # default dir on Ubuntu: /var/lib/docker/volumes
+  mongodb:
+  mongoconfig:
+networks:
+  mongodb_network:

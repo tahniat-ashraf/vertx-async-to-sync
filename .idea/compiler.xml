@@ -6,13 +6,13 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="vertx-async-core" />
-        <module name="vertx-sync" />
+        <module name="vertx-producer-async" />
+        <module name="vertx-consumer-sync" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="vertx-async-core" target="11" />
-      <module name="vertx-sync" target="11" />
+      <module name="vertx-consumer-sync" target="11" />
+      <module name="vertx-producer-async" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>

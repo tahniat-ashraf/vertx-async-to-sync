@@ -5,6 +5,8 @@
       <list>
         <option value="$PROJECT_DIR$/vertx-async-core/pom.xml" />
         <option value="$PROJECT_DIR$/vertx-sync/pom.xml" />
+        <option value="$PROJECT_DIR$/vertx-consumer-sync/pom.xml" />
+        <option value="$PROJECT_DIR$/vertx-producer-async/pom.xml" />
       </list>
     </option>
   </component>

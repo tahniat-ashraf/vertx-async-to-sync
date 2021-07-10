@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/vertx-async-core/vertx-async-core.iml" filepath="$PROJECT_DIR$/vertx-async-core/vertx-async-core.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/vertx-async-to-sync.iml" filepath="$PROJECT_DIR$/.idea/vertx-async-to-sync.iml" />
-      <module fileurl="file://$PROJECT_DIR$/vertx-sync/vertx-sync.iml" filepath="$PROJECT_DIR$/vertx-sync/vertx-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vertx-consumer-sync/vertx-consumer-sync.iml" filepath="$PROJECT_DIR$/vertx-consumer-sync/vertx-consumer-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vertx-producer-async/vertx-producer-async.iml" filepath="$PROJECT_DIR$/vertx-producer-async/vertx-producer-async.iml" />
     </modules>
   </component>
 </project>
