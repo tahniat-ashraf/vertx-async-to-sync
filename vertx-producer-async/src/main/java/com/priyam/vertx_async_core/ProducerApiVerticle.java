@@ -22,7 +22,7 @@ public class ProducerApiVerticle extends AbstractVerticle {
     var createPostHandler = new CreatePostHandler();
     var updatePostHandler = new UpdatePostHandler();
     var deletePostHandler = new DeletePostHandler();
-    var findPostByIdHandler= new FindPostByIdHandler();
+    var findPostByIdHandler = new FindPostByIdHandler();
 
     HealthCheckHandler healthCheckHandler = HealthCheckHandler.create(vertx);
 
@@ -35,7 +35,7 @@ public class ProducerApiVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     router.get("/health").handler(healthCheckHandler);
-    router.get("/posts").handler(findAllPostsHandler);
+    router.get("/findAllPosts").handler(findAllPostsHandler);
     router.get("/posts/:id").handler(findPostByIdHandler);
     router.post("/posts").handler(createPostHandler);
     router.delete("/posts/:id").handler(deletePostHandler);
@@ -49,9 +49,7 @@ public class ProducerApiVerticle extends AbstractVerticle {
       .subscribe(httpServer -> {
         LOG.info("ProducerApiVerticle is up and running bro");
         promise.complete();
-      }, throwable -> {
-        LOG.error("Failed to deploy ProducerApiVerticle");
-      });
+      }, throwable -> LOG.error("Failed to deploy ProducerApiVerticle", throwable));
 
   }
 }

@@ -1,17 +1,17 @@
 package com.priyam.vertx_async_core.handler;
 
-import com.priyam.vertx_async_core.model.Post;
+import com.priyam.vertx_async_core.eventbus.EventBusAddress;
 import com.priyam.vertx_async_core.service.MongoClientService;
 import io.vertx.core.Handler;
-import io.vertx.core.json.Json;
+import io.vertx.core.impl.logging.Logger;
+import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.ext.web.RoutingContext;
-
-import java.util.stream.Collectors;
 
 public class FindAllPostsHandler implements Handler<RoutingContext> {
 
   private final MongoClientService mongoClientService;
+  private final Logger LOG = LoggerFactory.getLogger("FindAllPostsHandler");
 
   public FindAllPostsHandler() {
     this.mongoClientService = new MongoClientService();
@@ -20,19 +20,19 @@ public class FindAllPostsHandler implements Handler<RoutingContext> {
   @Override
   public void handle(RoutingContext routingContext) {
 
+    var request = routingContext.getBodyAsJson();
+    routingContext.response().putHeader("content-type", "application/json");
 
-    mongoClientService
-      .findAllPosts()
-      .subscribe(postList -> {
-        routingContext.response().putHeader("content-type", "application/json");
+    routingContext
+      .vertx()
+      .eventBus()
+      .<JsonObject>rxRequest(EventBusAddress.FIND_ALL_POSTS.name(), request)
+      .subscribe(message -> routingContext.response().end(message.body().encode()),
+        throwable -> {
+          LOG.error("Problem while processing FIND_ALL_POSTS request", throwable);
+          var response = new JsonObject().put("status", "fail");
+          routingContext.response().end(response.encode());
+        });
 
-        var postsConvertedList = postList
-          .stream()
-          .map(entry -> entry.mapTo(Post.class))
-          .map(JsonObject::mapFrom)
-          .collect(Collectors.toList());
-
-        routingContext.response().end(Json.encodePrettily(postsConvertedList));
-      }, Throwable::printStackTrace);
   }
 }
