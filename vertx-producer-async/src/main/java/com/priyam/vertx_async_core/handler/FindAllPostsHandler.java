@@ -21,6 +21,9 @@ public class FindAllPostsHandler implements Handler<RoutingContext> {
   public void handle(RoutingContext routingContext) {
 
     var request = routingContext.getBodyAsJson();
+
+    LOG.info("FindAllPostsHandler :: request :: "+request);
+
     routingContext.response().putHeader("content-type", "application/json");
 
     routingContext

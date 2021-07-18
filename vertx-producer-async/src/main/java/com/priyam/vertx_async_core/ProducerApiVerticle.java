@@ -35,7 +35,7 @@ public class ProducerApiVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     router.get("/health").handler(healthCheckHandler);
-    router.get("/findAllPosts").handler(findAllPostsHandler);
+    router.post("/findAllPosts").handler(findAllPostsHandler);
     router.get("/posts/:id").handler(findPostByIdHandler);
     router.post("/posts").handler(createPostHandler);
     router.delete("/posts/:id").handler(deletePostHandler);

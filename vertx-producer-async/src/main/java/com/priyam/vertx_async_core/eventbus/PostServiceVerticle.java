@@ -24,13 +24,23 @@ public class PostServiceVerticle extends AbstractVerticle {
       .handler(request -> {
         var ack = new JsonObject().put("status", "success");
         request.reply(ack);
+
+        var requestBody = request.body();
+
+        LOG.info("PostServiceVerticle :: requestBody " + requestBody);
+
         mongoClient.findAllPosts()
-          .subscribe(posts -> webClient
-            .post(9080, "localhost", "/callback")
-            .rxSendJson(new JsonObject().put("posts", posts))
-            .subscribe(bufferHttpResponse -> {
-              System.out.println("bufferHttpResponse = " + bufferHttpResponse);
-            }, Throwable::printStackTrace), Throwable::printStackTrace);
+          .subscribe(posts -> {
+
+            LOG.info("posts :: mongodb :: "+posts);
+
+            webClient
+              .post(9080, "localhost", "/callback")
+              .sendJson(new JsonObject().put("posts", posts).put("requestId", requestBody.getString("requestId")));
+          }, throwable -> {
+            LOG.error("Could not send response to callback url");
+            throwable.printStackTrace();
+          });
 
       });
   }

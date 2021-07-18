@@ -20,8 +20,8 @@ public class ConsumerApiVerticle extends AbstractVerticle {
   public void start(Promise<Void> promise) throws Exception {
 
 
-    var findAllPostsHandler = new FindAllPostsHandler();
     var callbackHandler = new AsyncCallbackHandler();
+    var findAllPostsHandler = new FindAllPostsHandler(callbackHandler);
 
     HealthCheckHandler healthCheckHandler = HealthCheckHandler.create(vertx);
 
