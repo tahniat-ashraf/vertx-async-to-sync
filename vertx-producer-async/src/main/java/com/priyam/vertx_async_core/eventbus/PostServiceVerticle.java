@@ -35,7 +35,7 @@ public class PostServiceVerticle extends AbstractVerticle {
             LOG.info("posts :: mongodb :: "+posts);
 
             webClient
-              .post(9080, "localhost", "/callback")
+              .post(requestBody.getInteger("port"), requestBody.getString("host"), requestBody.getString("uri"))
               .sendJson(new JsonObject().put("posts", posts).put("requestId", requestBody.getString("requestId")));
           }, throwable -> {
             LOG.error("Could not send response to callback url");

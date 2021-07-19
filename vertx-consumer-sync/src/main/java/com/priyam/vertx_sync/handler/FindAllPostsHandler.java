@@ -5,12 +5,13 @@ import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.core.Vertx;
+import io.vertx.reactivex.core.buffer.Buffer;
 import io.vertx.reactivex.core.eventbus.MessageConsumer;
 import io.vertx.reactivex.ext.web.RoutingContext;
+import io.vertx.reactivex.ext.web.client.HttpResponse;
 import io.vertx.reactivex.ext.web.client.WebClient;
 
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 public class FindAllPostsHandler implements Handler<RoutingContext> {
 
@@ -32,35 +33,41 @@ public class FindAllPostsHandler implements Handler<RoutingContext> {
     var requestId = "request-" + UUID.randomUUID();
     var request = new JsonObject()
       .put("requestId", requestId)
-      .put("callbackUrl", "http://localhost:9080/posts");
+      .put("port", 9080)
+      .put("host","localhost")
+      .put("uri","/callback");
 
-    MessageConsumer<JsonObject> register = callbackHandler
-      .register(requestId);
+    var messageConsumer = createMessageConsumer(routingContext, requestId);
 
     webClient
       .post(9081, "localhost", "/findAllPosts")
       .rxSendJson(request)
-      .filter(ackResponse -> ackResponse.bodyAsJsonObject().getString("status").equalsIgnoreCase("success"))
-      .delay(1, TimeUnit.SECONDS)//1 second imposed delay for handler registration complete. Need to improve!
-      .flatMap(ackResponse -> {
-
-
+      .subscribe(ackResponse -> {
         LOG.info("ackResponse :: " + ackResponse.bodyAsJsonObject().encodePrettily());
+        if (!isValidAcknowledgementResponse(ackResponse)) {
+          messageConsumer.unregister();
+          routingContext.response().putHeader("content-type", "application/json");
+          routingContext.response().end(new JsonObject().put("status", "fail").encodePrettily());
+        }
+      });
 
-        return routingContext
-          .vertx()
-          .eventBus()
-          .<JsonObject>rxRequest(requestId, request).toMaybe();
+
+  }
 
 
-      })
-      .subscribe(message -> {
+  private MessageConsumer<JsonObject> createMessageConsumer(RoutingContext routingContext, String requestId) {
+    return routingContext
+      .vertx()
+      .eventBus()
+      .<JsonObject>consumer(requestId)
+      .handler(message -> {
         //callback response
         routingContext.response().putHeader("content-type", "application/json");
         routingContext.response().end(message.body().encodePrettily());
+      });
+  }
 
-      }, Throwable::printStackTrace);
-
-
+  private boolean isValidAcknowledgementResponse(HttpResponse<Buffer> ackResponse) {
+    return ackResponse.bodyAsJsonObject().getString("status").equalsIgnoreCase("success");
   }
 }
