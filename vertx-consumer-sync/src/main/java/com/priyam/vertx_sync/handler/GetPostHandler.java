@@ -9,14 +9,14 @@ import io.vertx.reactivex.core.Vertx;
 import io.vertx.reactivex.ext.web.RoutingContext;
 import io.vertx.reactivex.ext.web.client.WebClient;
 
-public class FindAllPostsHandler implements Handler<RoutingContext> {
+public class GetPostHandler implements Handler<RoutingContext> {
 
-  private final static Logger LOG = LoggerFactory.getLogger("FindAllPostsHandler");
+  private final static Logger LOG = LoggerFactory.getLogger("GetPostHandler");
   private final WebClient webClient;
   private final AsyncCallbackHandler callbackHandler;
 
 
-  public FindAllPostsHandler(AsyncCallbackHandler callbackHandler) {
+  public GetPostHandler(AsyncCallbackHandler callbackHandler) {
     webClient = WebClient.create(Vertx.currentContext().owner());
     this.callbackHandler = callbackHandler;
   }
@@ -24,16 +24,16 @@ public class FindAllPostsHandler implements Handler<RoutingContext> {
   @Override
   public void handle(RoutingContext routingContext) {
 
-    LOG.info("=> FindAllPostsHandler :: handle");
+    LOG.info("=> GetPostHandler :: handle");
 
     var requestId = Utility.generateRequestId();
-    var request = createFindAllPostsRequest(requestId);
+    var request = createGetPostByIdRequest(requestId, Integer.parseInt(routingContext.pathParam("id")));
 
     callbackHandler.register(requestId);
     var messageConsumer = Utility.createMessageConsumer(routingContext, requestId);
 
     webClient
-      .post(9081, "localhost", "/findAllPosts")
+      .post(9081, "localhost", "/getPost")
       .rxSendJson(request)
       .subscribe(ackResponse -> {
         if (!Utility.isValidAcknowledgementResponse(ackResponse)) {
@@ -46,13 +46,13 @@ public class FindAllPostsHandler implements Handler<RoutingContext> {
 
   }
 
-  private JsonObject createFindAllPostsRequest(String requestId) {
+  private JsonObject createGetPostByIdRequest(String requestId, int postId) {
     return new JsonObject()
       .put("requestId", requestId)
+      .put("postId", postId)
       .put("port", 9080)
       .put("host", "localhost")
       .put("uri", "/callback");
   }
-
 
 }

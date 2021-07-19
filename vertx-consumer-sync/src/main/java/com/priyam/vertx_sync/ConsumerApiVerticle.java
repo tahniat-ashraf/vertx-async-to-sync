@@ -1,8 +1,7 @@
 package com.priyam.vertx_sync;
 
 
-import com.priyam.vertx_sync.handler.AsyncCallbackHandler;
-import com.priyam.vertx_sync.handler.FindAllPostsHandler;
+import com.priyam.vertx_sync.handler.*;
 import io.vertx.core.Promise;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
@@ -22,6 +21,10 @@ public class ConsumerApiVerticle extends AbstractVerticle {
 
     var callbackHandler = new AsyncCallbackHandler();
     var findAllPostsHandler = new FindAllPostsHandler(callbackHandler);
+    var createNewPostHandler = new CreateNewPostHandler(callbackHandler);
+    var deletePostHandler = new DeletePostHandler(callbackHandler);
+    var updatePostHandler = new UpdatePostHandler(callbackHandler);
+    var getPostByIdHandler = new GetPostHandler(callbackHandler);
 
     HealthCheckHandler healthCheckHandler = HealthCheckHandler.create(vertx);
 
@@ -35,6 +38,10 @@ public class ConsumerApiVerticle extends AbstractVerticle {
     router.route().handler(BodyHandler.create());
     router.get("/health").handler(healthCheckHandler);
     router.get("/posts").handler(findAllPostsHandler);
+    router.get("/posts/:id").handler(getPostByIdHandler);
+    router.delete("/posts/:id").handler(deletePostHandler);
+    router.put("/posts").handler(updatePostHandler);
+    router.post("/posts").handler(createNewPostHandler);
     router.post("/callback").handler(callbackHandler);
 
 

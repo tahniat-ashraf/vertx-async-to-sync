@@ -17,7 +17,7 @@ public class MainVerticle extends AbstractVerticle {
       .rxDeployVerticle(ProducerApiVerticle.class.getName())
       .flatMap(s -> vertx.rxDeployVerticle(PostServiceVerticle.class.getName()))
       .subscribe((s) -> {
-        LOG.info("All verticles are up and running brotha");
+        LOG.info("All verticles are up & running");
         promise.complete();
       }, promise::fail);
   }
