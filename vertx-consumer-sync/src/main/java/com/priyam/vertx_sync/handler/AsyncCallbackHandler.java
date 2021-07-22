@@ -27,7 +27,7 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
     var timer = createTimeoutTimer(requestId);
     var callbackMetadata = createCallbackMetadata(timer);
     callbackMap.put(requestId, callbackMetadata);
-
+    LOG.info("registered for callback :: requestId :: " + requestId);
   }
 
   private long createTimeoutTimer(String requestId) {
@@ -58,7 +58,7 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
   @Override
   public void handle(RoutingContext routingContext) {
 
-    LOG.info("=> callback received :: " + routingContext.getBodyAsJson());
+    LOG.info("=> callback received :: requestId :: " + routingContext.getBodyAsJson().getString("requestId"));
 
     var callbackResponse = routingContext.getBodyAsJson();
     var requestId = callbackResponse.getString("requestId");
@@ -74,10 +74,15 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
         .vertx()
         .eventBus()
         .send(requestId, callbackResponse);
+
     } else {
       //if callback arrives in >29 second / duplicate callback, we ignore callback response
       LOG.error("requestId " + requestId + " isn't present in callbackMap");
+      routingContext.request().response().setStatusCode(400);
     }
+
+    routingContext.request().response().end();
+
 
   }
 }

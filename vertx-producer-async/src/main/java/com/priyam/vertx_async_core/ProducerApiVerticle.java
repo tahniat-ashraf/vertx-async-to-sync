@@ -59,7 +59,7 @@ public class ProducerApiVerticle extends AbstractVerticle {
 
   private void requestHandler(RoutingContext routingContext, EventBusAddress eventBusAddress) {
     var request = getRequestBody(routingContext);
-    LOG.info("requestHandler :: request :: " + request.encode());
+    LOG.info("requestHandler :: request :: " + request.encode() + "; eventBusAddress :: " + eventBusAddress.name());
 
     routingContext.response().putHeader("content-type", "application/json");
 
@@ -67,7 +67,12 @@ public class ProducerApiVerticle extends AbstractVerticle {
       .vertx()
       .eventBus()
       .<JsonObject>rxRequest(eventBusAddress.name(), request)
-      .subscribe(message -> routingContext.response().end(message.body().encode()),
+      .subscribe(message ->
+        {
+          var ackResponse = message.body().encodePrettily();
+          LOG.info("requestHandler :: ackResponse :: " + ackResponse);
+          routingContext.response().end(ackResponse);
+        },
         throwable -> {
           LOG.error("requestHandler :: error :: ", throwable);
           routingContext.response().end(Utility.DEFAULT_FAIL_MESSAGE.encode());

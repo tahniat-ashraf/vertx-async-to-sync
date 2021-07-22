@@ -7,9 +7,12 @@ import io.vertx.core.Promise;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.mongo.MongoClientDeleteResult;
 import io.vertx.reactivex.core.AbstractVerticle;
+import io.vertx.reactivex.core.eventbus.Message;
 import io.vertx.reactivex.core.eventbus.MessageConsumer;
 import io.vertx.reactivex.ext.web.client.WebClient;
+import io.vertx.reactivex.ext.web.codec.BodyCodec;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +34,7 @@ public class PostServiceVerticle extends AbstractVerticle {
     createFindAllPostsHandler(mongoClient, webClient);
     createGetPostByIdHandler(mongoClient, webClient);
     createAddPostHandler(mongoClient, webClient);
+    createDeletePostByIdHandler(mongoClient, webClient);
   }
 
   private MessageConsumer<JsonObject> getMessageConsumer(EventBusAddress eventBusAddress) {
@@ -40,58 +44,106 @@ public class PostServiceVerticle extends AbstractVerticle {
   }
 
   private void createGetPostByIdHandler(MongoClientService mongoClient, WebClient webClient) {
+
     getMessageConsumer(EventBusAddress.GET_POST)
       .handler(request -> {
-        request.reply(Utility.DEFAULT_ACK_RESPONSE);
-
         var requestBody = request.body();
+        sendAcknowledgementResponse(request, getRequestId(requestBody));
 
         mongoClient.findPostById(new JsonObject().put("id", requestBody.getInteger("postId")))
           .subscribe(response -> webClient
-            .post(requestBody.getInteger("port"), requestBody.getString("host"), requestBody.getString("uri"))
-            .sendJson(createGetPostByIdCallback(requestBody, response)), throwable -> LOG.error("failed to send response to callback url", throwable));
+              .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
+              .as(BodyCodec.none())
+              .sendJsonObject(createGetPostByIdCallback(requestBody, response)),
+            throwable -> LOG.error("failed to send response to callback url", throwable));
+
+      });
+  }
+
+
+  private void createDeletePostByIdHandler(MongoClientService mongoClient, WebClient webClient) {
+
+    getMessageConsumer(EventBusAddress.DELETE_POST)
+      .handler(request -> {
+        var requestBody = request.body();
+        sendAcknowledgementResponse(request, getRequestId(requestBody));
+
+        mongoClient.deletePost(new JsonObject().put("id", requestBody.getInteger("postId")))
+          .subscribe(response -> webClient
+              .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
+              .as(BodyCodec.none())
+              .sendJsonObject(createDeletePostByIdCallback(requestBody, response)),
+            throwable -> LOG.error("failed to send response to callback url", throwable));
 
       });
   }
 
   private void createAddPostHandler(MongoClientService mongoClient, WebClient webClient) {
+
     getMessageConsumer(EventBusAddress.ADD_POST)
       .handler(request -> {
-        request.reply(Utility.DEFAULT_ACK_RESPONSE);
-
         var requestBody = request.body();
-        var post = JsonObject.mapFrom(requestBody.mapTo(Post.class));
+        sendAcknowledgementResponse(request, getRequestId(requestBody));
+
+        var post = JsonObject.mapFrom(requestBody.getJsonObject("post").mapTo(Post.class));
 
         mongoClient.createNewPost(post)
           .subscribe(response -> webClient
-            .post(requestBody.getInteger("port"), requestBody.getString("host"), requestBody.getString("uri"))
-            .sendJson(createAddPostCallback(requestBody, response)), throwable -> LOG.error("failed to send response to callback url", throwable));
+              .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
+              .as(BodyCodec.none())
+              .sendJsonObject(createAddPostCallback(requestBody, response)),
+            throwable -> LOG.error("failed to send response to callback url", throwable));
 
       });
   }
 
 
   private void createFindAllPostsHandler(MongoClientService mongoClient, WebClient webClient) {
+
     getMessageConsumer(EventBusAddress.FIND_ALL_POSTS)
       .handler(request -> {
-        request.reply(Utility.DEFAULT_ACK_RESPONSE);
-
         var requestBody = request.body();
+        sendAcknowledgementResponse(request, getRequestId(requestBody));
 
         mongoClient.findAllPosts()
           .subscribe(posts -> webClient
-            .post(requestBody.getInteger("port"), requestBody.getString("host"), requestBody.getString("uri"))
-            .sendJson(createFindAllPostsCallback(requestBody, posts)), throwable -> LOG.error("failed to send response to callback url", throwable));
+              .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
+              .as(BodyCodec.none())
+              .sendJsonObject(createFindAllPostsCallback(requestBody, posts)),
+            throwable -> LOG.error("failed to send response to callback url", throwable));
 
       });
   }
 
-  private JsonObject createFindAllPostsCallback(JsonObject requestBody, List<JsonObject> posts) {
-    return new JsonObject().put("posts", posts).put("requestId", requestBody.getString("requestId"));
+  private String getRequestId(JsonObject requestBody) {
+    return requestBody.getString(Utility.REQUEST_ID_KEY);
   }
 
+  private String getHost(JsonObject requestBody) {
+    return requestBody.getString(Utility.HOST_KEY);
+  }
+
+  private Integer getPort(JsonObject requestBody) {
+    return requestBody.getInteger(Utility.PORT_KEY);
+  }
+
+
+  private String getUri(JsonObject requestBody) {
+    return requestBody.getString(Utility.URI_KEY);
+  }
+
+  private void sendAcknowledgementResponse(Message<JsonObject> request, String requestId) {
+    var ackResponse = Utility.DEFAULT_ACK_RESPONSE.put(Utility.REQUEST_ID_KEY, requestId);
+    request.reply(ackResponse);
+  }
+
+  private JsonObject createFindAllPostsCallback(JsonObject requestBody, List<JsonObject> posts) {
+    return new JsonObject().put("posts", posts).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
+  }
+
+
   private JsonObject createAddPostCallback(JsonObject requestBody, String post) {
-    return new JsonObject().put("response", post).put("requestId", requestBody.getString("requestId"));
+    return new JsonObject().put("response", post).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
   }
 
   private JsonObject createGetPostByIdCallback(JsonObject requestBody, List<JsonObject> posts) {
@@ -101,6 +153,11 @@ public class PostServiceVerticle extends AbstractVerticle {
       .map(postJsonObject -> postJsonObject.mapTo(Post.class))
       .collect(Collectors.toList());
 
-    return new JsonObject().put("posts", postList).put("requestId", requestBody.getString("requestId"));
+    return new JsonObject().put("posts", postList).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
+  }
+
+  private JsonObject createDeletePostByIdCallback(JsonObject requestBody, MongoClientDeleteResult mongoClientDeleteResult) {
+
+    return new JsonObject().put("response", mongoClientDeleteResult).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
   }
 }

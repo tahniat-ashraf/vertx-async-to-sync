@@ -61,7 +61,10 @@ public class MongoClientService {
     LOG.info("deletePost :: post :: " + jsonObject);
 
     return mongoClient
-      .rxRemoveDocument("posts", jsonObject);
+      .rxRemoveDocument("posts", jsonObject)
+      .doOnError(throwable -> {
+        LOG.error("deletePost :: error ", throwable);
+      });
 
   }
 
