@@ -25,6 +25,7 @@ public class ConsumerApiVerticle extends AbstractVerticle {
     var deletePostHandler = new DeletePostHandler(callbackHandler);
     var updatePostHandler = new UpdatePostHandler(callbackHandler);
     var getPostByIdHandler = new GetPostHandler(callbackHandler);
+    var exceptionHandler = new ExceptionHandler();
 
     HealthCheckHandler healthCheckHandler = HealthCheckHandler.create(vertx);
 
@@ -35,6 +36,7 @@ public class ConsumerApiVerticle extends AbstractVerticle {
     });
 
     Router router = Router.router(vertx);
+    router.route().failureHandler(exceptionHandler);
     router.route().handler(BodyHandler.create());
     router.get("/health").handler(healthCheckHandler);
     router.get("/posts").handler(findAllPostsHandler);

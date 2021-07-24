@@ -1,13 +1,17 @@
 package com.priyam.vertx_async_core.eventbus;
 
+import com.priyam.vertx_async_core.exception.MyCustomCallbackException;
 import com.priyam.vertx_async_core.model.Post;
+import com.priyam.vertx_async_core.model.response.ErrorResponse;
 import com.priyam.vertx_async_core.service.MongoClientService;
 import com.priyam.vertx_async_core.util.Utility;
+import io.reactivex.Maybe;
 import io.vertx.core.Promise;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mongo.MongoClientDeleteResult;
+import io.vertx.ext.mongo.MongoClientUpdateResult;
 import io.vertx.reactivex.core.AbstractVerticle;
 import io.vertx.reactivex.core.eventbus.Message;
 import io.vertx.reactivex.core.eventbus.MessageConsumer;
@@ -35,6 +39,7 @@ public class PostServiceVerticle extends AbstractVerticle {
     createGetPostByIdHandler(mongoClient, webClient);
     createAddPostHandler(mongoClient, webClient);
     createDeletePostByIdHandler(mongoClient, webClient);
+    createUpdatePostHandler(mongoClient, webClient);
   }
 
   private MessageConsumer<JsonObject> getMessageConsumer(EventBusAddress eventBusAddress) {
@@ -55,7 +60,10 @@ public class PostServiceVerticle extends AbstractVerticle {
               .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
               .as(BodyCodec.none())
               .sendJsonObject(createGetPostByIdCallback(requestBody, response)),
-            throwable -> LOG.error("failed to send response to callback url", throwable));
+            throwable -> {
+              LOG.error("failed to send response to callback url", throwable);
+              handleCustomCallbackException(webClient, throwable);
+            });
 
       });
   }
@@ -73,7 +81,10 @@ public class PostServiceVerticle extends AbstractVerticle {
               .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
               .as(BodyCodec.none())
               .sendJsonObject(createDeletePostByIdCallback(requestBody, response)),
-            throwable -> LOG.error("failed to send response to callback url", throwable));
+            throwable -> {
+              LOG.error("error :: ", throwable);
+              handleCustomCallbackException(webClient, throwable);
+            });
 
       });
   }
@@ -83,16 +94,63 @@ public class PostServiceVerticle extends AbstractVerticle {
     getMessageConsumer(EventBusAddress.ADD_POST)
       .handler(request -> {
         var requestBody = request.body();
-        sendAcknowledgementResponse(request, getRequestId(requestBody));
-
+        var requestId = getRequestId(requestBody);
         var post = JsonObject.mapFrom(requestBody.getJsonObject("post").mapTo(Post.class));
+        var host = getHost(requestBody);
+        var port = getPort(requestBody);
+        var uri = getUri(requestBody);
 
-        mongoClient.createNewPost(post)
+        sendAcknowledgementResponse(request, requestId);
+
+        mongoClient.findPostById(new JsonObject().put("id", post.getInteger("id")))
+          .filter(posts -> posts.size() == 0)
+          .switchIfEmpty(Maybe.error(
+            MyCustomCallbackException.builder().host(host).port(port).uri(uri)
+              .requestId(requestId)
+              .message("Post already exists")
+              .build()))
+          .flatMap(posts -> mongoClient.createNewPost(post))
           .subscribe(response -> webClient
-              .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
+              .post(port, host, uri)
               .as(BodyCodec.none())
               .sendJsonObject(createAddPostCallback(requestBody, response)),
-            throwable -> LOG.error("failed to send response to callback url", throwable));
+            throwable -> {
+              LOG.error("error :: ", throwable);
+              handleCustomCallbackException(webClient, throwable);
+
+            });
+
+      });
+  }
+
+  private void createUpdatePostHandler(MongoClientService mongoClient, WebClient webClient) {
+
+    getMessageConsumer(EventBusAddress.UPDATE_POST)
+      .handler(request -> {
+        var requestBody = request.body();
+        var requestId = getRequestId(requestBody);
+        var post = JsonObject.mapFrom(requestBody.getJsonObject("post").mapTo(Post.class));
+        var host = getHost(requestBody);
+        var port = getPort(requestBody);
+        var uri = getUri(requestBody);
+
+        mongoClient.findPostById(new JsonObject().put("id", post.getInteger("id")))
+          .filter(posts -> posts.size() == 1)
+          .switchIfEmpty(Maybe.error(
+            MyCustomCallbackException.builder().host(host).port(port).uri(uri)
+              .requestId(requestId)
+              .message("Post doesn't exist")
+              .build()))
+          .flatMap(posts -> mongoClient.updatePost(new JsonObject().put("id", posts.get(0).getInteger("id")),
+            new JsonObject().put("$set", post)))
+          .subscribe(response -> webClient
+              .post(port, host, uri)
+              .as(BodyCodec.none())
+              .sendJsonObject(createUpdatePostCallback(requestBody, response)),
+            throwable -> {
+              LOG.error("failed to send response to callback url", throwable);
+              handleCustomCallbackException(webClient, throwable);
+            });
 
       });
   }
@@ -110,9 +168,25 @@ public class PostServiceVerticle extends AbstractVerticle {
               .post(getPort(requestBody), getHost(requestBody), getUri(requestBody))
               .as(BodyCodec.none())
               .sendJsonObject(createFindAllPostsCallback(requestBody, posts)),
-            throwable -> LOG.error("failed to send response to callback url", throwable));
+            throwable -> {
+              LOG.error("failed to send response to callback url", throwable);
+              handleCustomCallbackException(webClient, throwable);
+            });
 
       });
+  }
+
+  private void handleCustomCallbackException(WebClient webClient, Throwable throwable) {
+    if (throwable instanceof MyCustomCallbackException) {
+      var errResp = ErrorResponse.builder().status("fail").build();
+      var myCustomException = (MyCustomCallbackException) throwable;
+      errResp.setMessage(myCustomException.getErrorMessage());
+      errResp.setRequestId(myCustomException.getRequestId());
+      webClient
+        .post(myCustomException.getPort(), myCustomException.getHost(), myCustomException.getUri())
+        .as(BodyCodec.none())
+        .sendJsonObject(JsonObject.mapFrom(errResp));
+    }
   }
 
   private String getRequestId(JsonObject requestBody) {
@@ -137,6 +211,10 @@ public class PostServiceVerticle extends AbstractVerticle {
     request.reply(ackResponse);
   }
 
+  private JsonObject createFailureCallback(JsonObject requestBody, String response) {
+    return new JsonObject().put("status", "fail").put("response", response).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
+  }
+
   private JsonObject createFindAllPostsCallback(JsonObject requestBody, List<JsonObject> posts) {
     return new JsonObject().put("posts", posts).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
   }
@@ -144,6 +222,10 @@ public class PostServiceVerticle extends AbstractVerticle {
 
   private JsonObject createAddPostCallback(JsonObject requestBody, String post) {
     return new JsonObject().put("response", post).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
+  }
+
+  private JsonObject createUpdatePostCallback(JsonObject requestBody, MongoClientUpdateResult response) {
+    return new JsonObject().put("response", response).put(Utility.REQUEST_ID_KEY, getRequestId(requestBody));
   }
 
   private JsonObject createGetPostByIdCallback(JsonObject requestBody, List<JsonObject> posts) {

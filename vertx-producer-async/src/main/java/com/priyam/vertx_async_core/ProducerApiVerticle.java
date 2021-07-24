@@ -1,7 +1,7 @@
 package com.priyam.vertx_async_core;
 
 import com.priyam.vertx_async_core.eventbus.EventBusAddress;
-import com.priyam.vertx_async_core.handler.*;
+import com.priyam.vertx_async_core.handler.ExceptionHandler;
 import com.priyam.vertx_async_core.util.Utility;
 import io.vertx.core.Promise;
 import io.vertx.core.impl.logging.Logger;
@@ -21,14 +21,8 @@ public class ProducerApiVerticle extends AbstractVerticle {
   @Override
   public void start(Promise<Void> promise) throws Exception {
 
-
-    var findAllPostsHandler = new FindAllPostsHandler();
-    var createPostHandler = new CreatePostHandler();
-    var updatePostHandler = new UpdatePostHandler();
-    var deletePostHandler = new DeletePostHandler();
-    var findPostByIdHandler = new FindPostByIdHandler();
-
     HealthCheckHandler healthCheckHandler = HealthCheckHandler.create(vertx);
+    ExceptionHandler exceptionHandler = new ExceptionHandler();
 
     healthCheckHandler.register("health-check-proc", 2000, p -> {
 
@@ -39,11 +33,11 @@ public class ProducerApiVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     router.get("/health").handler(healthCheckHandler);
-    router.post("/findAllPosts").handler(routingContext -> requestHandler(routingContext, EventBusAddress.FIND_ALL_POSTS));
-    router.post("/getPost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.GET_POST));
-    router.post("/createNewPost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.ADD_POST));
-    router.post("/deletePost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.DELETE_POST));
-    router.post("/updatePost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.UPDATE_POST));
+    router.post("/findAllPosts").handler(routingContext -> requestHandler(routingContext, EventBusAddress.FIND_ALL_POSTS)).failureHandler(exceptionHandler);
+    router.post("/getPost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.GET_POST)).failureHandler(exceptionHandler);
+    router.post("/createNewPost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.ADD_POST)).failureHandler(exceptionHandler);
+    router.post("/deletePost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.DELETE_POST)).failureHandler(exceptionHandler);
+    router.post("/updatePost").handler(routingContext -> requestHandler(routingContext, EventBusAddress.UPDATE_POST)).failureHandler(exceptionHandler);
 
 
     vertx

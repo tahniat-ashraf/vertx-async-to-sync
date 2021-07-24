@@ -5,20 +5,15 @@ import io.vertx.core.Handler;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
-import io.vertx.reactivex.core.Vertx;
 import io.vertx.reactivex.ext.web.RoutingContext;
-import io.vertx.reactivex.ext.web.client.WebClient;
 
-public class DeletePostHandler implements Handler<RoutingContext> {
+public class DeletePostHandler  extends AbstractRequestHandler implements Handler<RoutingContext> {
 
   private final static Logger LOG = LoggerFactory.getLogger("DeletePostHandler");
-  private final WebClient webClient;
-  private final AsyncCallbackHandler callbackHandler;
-
 
   public DeletePostHandler(AsyncCallbackHandler callbackHandler) {
-    webClient = WebClient.create(Vertx.currentContext().owner());
-    this.callbackHandler = callbackHandler;
+    super("localhost", 9081, "/deletePost", callbackHandler);
+
   }
 
   @Override
@@ -29,29 +24,12 @@ public class DeletePostHandler implements Handler<RoutingContext> {
     var requestId = Utility.generateRequestId();
     var request = createDeletePostByIdRequest(requestId, Integer.parseInt(routingContext.pathParam("id")));
 
-    callbackHandler.register(requestId);
-    var messageConsumer = Utility.createMessageConsumer(routingContext, requestId);
-
-    webClient
-      .post(9081, "localhost", "/deletePost")
-      .rxSendJson(request)
-      .subscribe(ackResponse -> {
-        if (!Utility.isValidAcknowledgementResponse(ackResponse)) {
-          messageConsumer.unregister();
-          routingContext.response().putHeader("content-type", "application/json");
-          routingContext.response().end(ackResponse.bodyAsJsonObject().encodePrettily());
-        }
-      });
-
+    handleRequest(routingContext, request, requestId);
 
   }
 
   private JsonObject createDeletePostByIdRequest(String requestId, int postId) {
-    return new JsonObject()
-      .put("requestId", requestId)
-      .put("postId", postId)
-      .put("port", 9080)
-      .put("host", "localhost")
-      .put("uri", "/callback");
+    return createCallBackJsonObject(requestId)
+      .put("postId", postId);
   }
 }

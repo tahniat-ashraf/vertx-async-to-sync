@@ -1,10 +1,10 @@
 package com.priyam.vertx_sync.handler;
 
 import com.priyam.vertx_sync.model.CallbackMetadata;
+import com.priyam.vertx_sync.util.Utility;
 import io.vertx.core.Handler;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
-import io.vertx.core.json.JsonObject;
 import io.vertx.reactivex.core.Vertx;
 import io.vertx.reactivex.ext.web.RoutingContext;
 
@@ -15,7 +15,6 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger("AsyncCallbackHandler");
   private final Map<String, CallbackMetadata> callbackMap;
-  private final static JsonObject DEFAULT_TIMEOUT_MESSAGE = new JsonObject().put("status", "timeout");
 
 
   public AsyncCallbackHandler() {
@@ -30,11 +29,21 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
     LOG.info("registered for callback :: requestId :: " + requestId);
   }
 
+  public void unregister(String requestId) {
+    if (callbackMap.containsKey(requestId)) {
+      Vertx.currentContext().owner()
+        .cancelTimer(callbackMap.get(requestId).getTimer());
+
+      callbackMap.remove(requestId);//un-register requestId!
+
+    }
+  }
+
   private long createTimeoutTimer(String requestId) {
     return Vertx
       .currentContext()
       .owner()
-      .setTimer(29000, aLong -> {
+      .setTimer(Utility.TIMEOUT_IN_MILLI, aLong -> {
         if (callbackMap.containsKey(requestId)) {
           callbackMap.remove(requestId);//un-register requestId!
 
@@ -42,7 +51,7 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
             .currentContext()
             .owner()
             .eventBus()
-            .send(requestId, DEFAULT_TIMEOUT_MESSAGE);
+            .send(requestId, Utility.DEFAULT_TIMEOUT_MESSAGE);
         }
       });
   }
@@ -64,11 +73,8 @@ public class AsyncCallbackHandler implements Handler<RoutingContext> {
     var requestId = callbackResponse.getString("requestId");
 
     if (callbackMap.containsKey(requestId)) {
-      routingContext
-        .vertx()
-        .cancelTimer(callbackMap.get(requestId).getTimer());
 
-      callbackMap.remove(requestId);//un-register requestId!
+      unregister(requestId);
 
       routingContext
         .vertx()

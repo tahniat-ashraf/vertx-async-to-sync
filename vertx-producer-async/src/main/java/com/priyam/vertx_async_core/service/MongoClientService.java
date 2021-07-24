@@ -7,6 +7,7 @@ import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mongo.MongoClientDeleteResult;
 import io.vertx.ext.mongo.MongoClientUpdateResult;
+import io.vertx.ext.mongo.UpdateOptions;
 import io.vertx.reactivex.core.Vertx;
 import io.vertx.reactivex.ext.mongo.MongoClient;
 
@@ -36,12 +37,14 @@ public class MongoClientService {
 
   }
 
-  public Maybe<MongoClientUpdateResult> updatePost(JsonObject oldPost, JsonObject newPost) {
+  public Maybe<MongoClientUpdateResult> updatePost(JsonObject query, JsonObject newPost) {
 
-    LOG.info("updatePost :: oldPost :: " + oldPost + "; newPost :: " + newPost);
+    LOG.info("updatePost :: query :: " + query + "; newPost :: " + newPost);
+
+    UpdateOptions options = new UpdateOptions().setMulti(false).setUpsert(false);
 
     return mongoClient
-      .rxUpdateCollection("posts", oldPost, newPost);
+      .rxUpdateCollectionWithOptions("posts", query, newPost, options);
 
   }
 
