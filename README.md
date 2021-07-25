@@ -56,8 +56,10 @@ cd ../vertx-producer-async
 mvn clean package
 java -jar target/*-fat.jar
 ```
-4. Open terminal. Insert 100 sample posts in our mongodb collection for test purpose
-`curl --location --request POST 'localhost:9081/addBulkPosts'`
+4. Open terminal. Insert 100 sample posts in our mongodb collection for test purpose (thanks to [jsonplaceholder](https://jsonplaceholder.typicode.com/posts))
+```
+curl --location --request POST 'localhost:9081/addBulkPosts'
+```
 
 ## Testing
 
