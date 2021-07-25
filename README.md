@@ -59,4 +59,40 @@ java -jar target/*-fat.jar
 4. Open terminal. Insert 100 sample posts in our mongodb collection for test purpose
 `curl --location --request POST 'localhost:9081/addBulkPosts'`
 
+## Testing
 
+### CURL Commands
+
+- Find all Posts
+
+`curl --location --request GET 'localhost:9080/posts'`
+- Get Post by id
+
+`curl --location --request GET 'localhost:9080/posts/1'`
+- Create new Post
+
+```
+curl --location --request POST 'localhost:9080/posts' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "userId": 1,
+    "id": 101,
+    "title": "Lorem Ipsum Title",
+    "body": "Lorem Ipsum Body"
+}'
+```
+- Update Post
+
+```
+curl --location --request PUT 'localhost:9080/posts' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "userId": 1,
+    "id": 101,
+    "title": "Lorem Ipsum Title - NEW",
+    "body": "Lorem Ipsum Body - NEW"
+}'
+```
+- Delete Post by id
+
+`curl --location --request DELETE 'localhost:9080/posts/101'`
