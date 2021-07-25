@@ -1,15 +1,18 @@
 package com.priyam.vertx_async_core.service;
 
+import io.reactivex.Flowable;
 import io.reactivex.Maybe;
 import io.reactivex.Single;
 import io.vertx.core.impl.logging.Logger;
 import io.vertx.core.impl.logging.LoggerFactory;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.mongo.MongoClientDeleteResult;
-import io.vertx.ext.mongo.MongoClientUpdateResult;
+import io.vertx.ext.mongo.*;
 import io.vertx.reactivex.core.Vertx;
+import io.vertx.reactivex.core.buffer.Buffer;
 import io.vertx.reactivex.ext.mongo.MongoClient;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MongoClientService {
@@ -36,12 +39,38 @@ public class MongoClientService {
 
   }
 
-  public Maybe<MongoClientUpdateResult> updatePost(JsonObject oldPost, JsonObject newPost) {
+  public Maybe<MongoClientBulkWriteResult> bulkAddPosts() {
 
-    LOG.info("updatePost :: oldPost :: " + oldPost + "; newPost :: " + newPost);
+    final List<BulkOperation> bulkOperationList = new ArrayList<>();
+
+    return Vertx.currentContext()
+      .owner()
+      .fileSystem()
+      .rxReadFile("fake-posts.json")
+      .map(Buffer::toJsonArray)
+      .map(JsonArray::getList)
+      .toFlowable()
+      .flatMap(list -> Flowable.fromIterable(list))
+      .map(obj -> {
+        var document = JsonObject.mapFrom(obj);
+        bulkOperationList.add(BulkOperation.createInsert(document));
+        return document;
+      })
+      .toList()
+      .toMaybe()
+      .flatMap(list -> mongoClient.rxBulkWrite("posts", bulkOperationList));
+
+
+  }
+
+  public Maybe<MongoClientUpdateResult> updatePost(JsonObject query, JsonObject newPost) {
+
+    LOG.info("updatePost :: query :: " + query + "; newPost :: " + newPost);
+
+    UpdateOptions options = new UpdateOptions().setMulti(false).setUpsert(false);
 
     return mongoClient
-      .rxUpdateCollection("posts", oldPost, newPost);
+      .rxUpdateCollectionWithOptions("posts", query, newPost, options);
 
   }
 
@@ -61,7 +90,10 @@ public class MongoClientService {
     LOG.info("deletePost :: post :: " + jsonObject);
 
     return mongoClient
-      .rxRemoveDocument("posts", jsonObject);
+      .rxRemoveDocument("posts", jsonObject)
+      .doOnError(throwable -> {
+        LOG.error("deletePost :: error ", throwable);
+      });
 
   }
 
